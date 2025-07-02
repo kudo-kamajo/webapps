@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>進数変換タイムアタック</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      padding: 2rem;
+      background: linear-gradient(to bottom right, #e0f7fa, #fce4ec);
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+
+    #controls {
+      margin-bottom: 1.5rem;
+    }
+
+    select, label {
+      font-size: 1.1rem;
+      margin: 0 0.5rem;
+      padding: 0.3rem 0.6rem;
+    }
+
+    #question-area {
+      font-size: 2rem;
+      margin: 1rem 0;
+      color: #222;
+    }
+
+    .bit-button {
+      font-size: 2rem;
+      width: 70px;
+      height: 70px;
+      margin: 0.5rem;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .bit-0 { background-color: #ccc; color: black; }
+    .bit-1 { background-color: orange; color: black; }
+    .correct { background-color: #8be78b !important; color: white; }
+    .incorrect { background-color: #f88 !important; color: white; }
+
+    .bit-button:hover {
+      transform: scale(1.1);
+    }
+
+    #decimal-answer-display {
+      font-size: 1.8rem;
+      margin: 1rem;
+      min-height: 2.5rem;
+      background: white;
+      padding: 0.3rem 1rem;
+      border-radius: 6px;
+      border: 1px solid #999;
+      display: inline-block;
+      transition: background-color 0.3s, border 0.3s;
+    }
+
+    .correct-answer {
+      background-color: #c8f7c5 !important;
+      border: 2px solid #4CAF50;
+    }
+
+    .incorrect-answer {
+      background-color: #f9c0c0 !important;
+      border: 2px solid #f44336;
+    }
+
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 70px);
+      gap: 10px;
+      justify-content: center;
+      margin: 1rem 0;
+    }
+
+    .keypad button {
+      font-size: 1.5rem;
+      padding: 15px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .digit-button {
+      background-color: #ffd54f;
+      border-radius: 50%;
+    }
+
+    .command-button {
+      background-color: #ddd;
+      border-radius: 8px;
+    }
+
+    .keypad button:hover {
+      background-color: #bbb;
+    }
+
+    #result {
+      font-size: 1.4rem;
+      margin-top: 1rem;
+      height: 2rem;
+    }
+
+    button#action-button, button#restart-button {
+      margin-top: 1rem;
+      padding: 12px 28px;
+      font-size: 1.3rem;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .convert-button {
+      background-color: #4CAF50;
+    }
+
+    .convert-button:hover {
+      background-color: #45a049;
+    }
+
+    .next-button {
+      background-color: #2196F3;
+    }
+
+    .next-button:hover {
+      background-color: #1976D2;
+    }
+
+    .restart-button {
+      background-color: #FF7043;
+    }
+
+    .restart-button:hover {
+      background-color: #f4511e;
+    }
+
+    #timer, #score, #final-stats {
+      font-size: 1.4rem;
+      margin-top: 1rem;
+    }
+
+    #countdown {
+      font-size: 3rem;
+      color: red;
+      margin: 1rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>進数変換タイムアタック</h1>
+
+  <div id="controls">
+    <label>難易度:
+      <select id="level-select">
+        <option value="4">初級（4桁）</option>
+        <option value="5">中級（5桁）</option>
+        <option value="6">上級（6桁）</option>
+      </select>
+    </label>
+
+    <label>モード:
+      <select id="mode-select">
+        <option value="dec-to-bin">10進数 → 2進数</option>
+        <option value="bin-to-dec">2進数 → 10進数</option>
+      </select>
+    </label>
+
+    <label>タイムアタック:
+      <select id="time-attack-select">
+        <option value="off">オフ（通常モード）</option>
+        <option value="on">オン（1分間）</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="countdown">3</div>
+  <div id="question-area"></div>
+  <div id="binary-input"></div>
+
+  <div id="decimal-answer-area" style="display: none;">
+    <div id="decimal-answer-display"> </div>
+    <div class="keypad">
+      <button class="digit-button" data-digit="1">1</button>
+      <button class="digit-button" data-digit="2">2</button>
+      <button class="digit-button" data-digit="3">3</button>
+      <button class="digit-button" data-digit="4">4</button>
+      <button class="digit-button" data-digit="5">5</button>
+      <button class="digit-button" data-digit="6">6</button>
+      <button class="digit-button" data-digit="7">7</button>
+      <button class="digit-button" data-digit="8">8</button>
+      <button class="digit-button" data-digit="9">9</button>
+      <button class="command-button" data-clear="true">C</button>
+      <button class="digit-button" data-digit="0">0</button>
+      <button class="command-button" data-back="true">⌫</button>
+    </div>
+  </div>
+
+  <div>
+    <button id="action-button" class="convert-button">変換</button>
+    <button id="restart-button" class="restart-button" style="display:none;">もう一度</button>
+  </div>
+
+  <div id="result"></div>
+  <div id="timer"></div>
+  <div id="score"></div>
+  <div id="final-stats"></div>
+
+<script>
+  let bitLength = 4;
+  let mode = 'dec-to-bin';
+  let currentDecimal = 0;
+  let currentBinary = '';
+  let state = 'convert';
+  let userDecimalInput = '';
+  let timeAttack = false;
+
+  let score = 0;
+  let combo = 0;
+  let maxCombo = 0;
+  let correctCount = 0;
+  let missCount = 0;
+  let timer = 60;
+  let intervalId;
+  let countdownId;
+
+  const questionArea = document.getElementById('question-area');
+  const binaryInput = document.getElementById('binary-input');
+  const resultDiv = document.getElementById('result');
+  const actionButton = document.getElementById('action-button');
+  const restartButton = document.getElementById('restart-button');
+  const decimalAnswerArea = document.getElementById('decimal-answer-area');
+  const decimalDisplay = document.getElementById('decimal-answer-display');
+  const countdownDisplay = document.getElementById('countdown');
+  const timerDisplay = document.getElementById('timer');
+  const scoreDisplay = document.getElementById('score');
+  const finalStats = document.getElementById('final-stats');
+
+  function setButtonState(mode) {
+    if (mode === 'convert') {
+      actionButton.textContent = '変換';
+      actionButton.classList.remove('next-button');
+      actionButton.classList.add('convert-button');
+      state = 'convert';
+    } else {
+      actionButton.textContent = '次の問題';
+      actionButton.classList.remove('convert-button');
+      actionButton.classList.add('next-button');
+      state = 'next';
+    }
+  }
+
+  function generateQuestion() {
+    bitLength = parseInt(document.getElementById('level-select').value);
+    mode = document.getElementById('mode-select').value;
+    timeAttack = document.getElementById('time-attack-select').value === 'on';
+    setButtonState('convert');
+    resultDiv.textContent = '';
+    finalStats.textContent = '';
+    userDecimalInput = '';
+    decimalDisplay.textContent = '';
+    decimalDisplay.classList.remove('correct-answer', 'incorrect-answer');
+    decimalAnswerArea.style.display = 'none';
+    binaryInput.innerHTML = '';
+
+    if (mode === 'dec-to-bin') {
+      currentDecimal = Math.floor(Math.random() * (2 ** bitLength));
+      questionArea.innerHTML = `<strong>10進数: ${currentDecimal}</strong>`;
+      for (let i = 0; i < bitLength; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = '0';
+        btn.className = 'bit-button bit-0';
+        btn.addEventListener('click', toggleBit);
+        binaryInput.appendChild(btn);
+      }
+    } else {
+      currentBinary = Math.floor(Math.random() * (2 ** bitLength)).toString(2).padStart(bitLength, '0');
+      questionArea.innerHTML = `<strong>2進数: ${currentBinary}</strong>`;
+      decimalAnswerArea.style.display = 'block';
+    }
+  }
+
+  function toggleBit(event) {
+    const btn = event.target;
+    if (btn.textContent === '0') {
+      btn.textContent = '1';
+      btn.classList.remove('bit-0');
+      btn.classList.add('bit-1');
+    } else {
+      btn.textContent = '0';
+      btn.classList.remove('bit-1');
+      btn.classList.add('bit-0');
+    }
+  }
+
+  function checkAnswer() {
+    let correct = false;
+    if (mode === 'dec-to-bin') {
+      const input = Array.from(document.querySelectorAll('.bit-button')).map(b => b.textContent).join('');
+      correct = parseInt(input, 2) === currentDecimal;
+      showFeedback(correct, input);
+    } else {
+      const userAnswer = parseInt(userDecimalInput, 10);
+      const correctValue = parseInt(currentBinary, 2);
+      correct = userAnswer === correctValue;
+      resultDiv.textContent = correct
+        ? "正解！"
+        : `不正解… 正しくは ${correctValue} です`;
+      resultDiv.style.color = correct ? 'green' : 'red';
+      decimalDisplay.classList.remove('correct-answer', 'incorrect-answer');
+      decimalDisplay.classList.add(correct ? 'correct-answer' : 'incorrect-answer');
+    }
+
+    if (timeAttack) {
+      if (correct) {
+        combo++;
+        correctCount++;
+        score += combo;
+        maxCombo = Math.max(maxCombo, combo);
+      } else {
+        combo = 0;
+        missCount++;
+      }
+      scoreDisplay.textContent = `スコア: ${score}`;
+      generateQuestion();
+    } else {
+      setButtonState('next');
+    }
+  }
+
+  function showFeedback(correct, input) {
+    const buttons = document.querySelectorAll('.bit-button');
+    buttons.forEach(btn => {
+      btn.classList.remove('bit-0', 'bit-1');
+      btn.classList.add(correct ? 'correct' : 'incorrect');
+    });
+    const correctBinary = currentDecimal.toString(2).padStart(bitLength, '0');
+    resultDiv.textContent = correct
+      ? "正解！"
+      : `不正解… 正しくは ${correctBinary} です`;
+    resultDiv.style.color = correct ? 'green' : 'red';
+  }
+
+  function startCountdown() {
+    let count = 3;
+    countdownDisplay.textContent = count;
+    countdownDisplay.style.display = 'block';
+    restartButton.style.display = 'none';
+    countdownId = setInterval(() => {
+      count--;
+      countdownDisplay.textContent = count;
+      if (count === 0) {
+        clearInterval(countdownId);
+        countdownDisplay.style.display = 'none';
+        startTimeAttack();
+      }
+    }, 1000);
+  }
+
+  function startTimeAttack() {
+    score = 0;
+    combo = 0;
+    correctCount = 0;
+    missCount = 0;
+    maxCombo = 0;
+    timer = 60;
+
+    scoreDisplay.textContent = `スコア: 0`;
+    timerDisplay.textContent = `残り時間: 60秒`;
+    finalStats.textContent = '';
+    actionButton.disabled = false;
+
+    generateQuestion();
+
+    intervalId = setInterval(() => {
+      timer--;
+      timerDisplay.textContent = `残り時間: ${timer}秒`;
+      if (timer <= 0) {
+        clearInterval(intervalId);
+        finishTimeAttack();
+      }
+    }, 1000);
+  }
+
+  function finishTimeAttack() {
+    questionArea.textContent = '';
+    binaryInput.innerHTML = '';
+    decimalDisplay.textContent = '';
+    decimalAnswerArea.style.display = 'none';
+    actionButton.disabled = true;
+    restartButton.style.display = 'inline-block';
+
+    resultDiv.textContent = `タイムアップ！`;
+    resultDiv.style.color = '#f44336';
+
+    finalStats.innerHTML = `
+      <strong>【結果】</strong><br>
+      ✅ スコア: ${score}点<br>
+      🎯 正解数: ${correctCount}問<br>
+      ❌ ミス数: ${missCount}問<br>
+      🔥 最大連続正解数: ${maxCombo}問
+    `;
+  }
+
+  function resetGame() {
+    actionButton.disabled = false;
+    restartButton.style.display = 'none';
+    scoreDisplay.textContent = '';
+    timerDisplay.textContent = '';
+    resultDiv.textContent = '';
+    finalStats.textContent = '';
+    generateQuestion();
+  }
+
+  actionButton.addEventListener('click', () => {
+    if (state === 'convert') {
+      checkAnswer();
+    } else {
+      generateQuestion();
+    }
+  });
+
+  restartButton.addEventListener('click', () => {
+    startCountdown();
+  });
+
+  document.getElementById('level-select').addEventListener('change', generateQuestion);
+  document.getElementById('mode-select').addEventListener('change', generateQuestion);
+  document.getElementById('time-attack-select').addEventListener('change', () => {
+    if (document.getElementById('time-attack-select').value === 'on') {
+      startCountdown();
+    } else {
+      clearInterval(intervalId);
+      actionButton.disabled = false;
+      timerDisplay.textContent = '';
+      scoreDisplay.textContent = '';
+      finalStats.textContent = '';
+      restartButton.style.display = 'none';
+      generateQuestion();
+    }
+  });
+
+  document.querySelectorAll('.keypad button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.digit !== undefined) {
+        userDecimalInput += btn.dataset.digit;
+      } else if (btn.dataset.clear) {
+        userDecimalInput = '';
+      } else if (btn.dataset.back) {
+        userDecimalInput = userDecimalInput.slice(0, -1);
+      }
+      decimalDisplay.textContent = userDecimalInput;
+    });
+  });
+
+  generateQuestion();
+</script>
+</body>
+</html>
+
