@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>音のデジタル化体験</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: #f7f9fc;
+    }
+    h1 {
+      color: #2a4d8f;
+    }
+    canvas {
+      border: 2px solid #2a4d8f;
+      margin-top: 20px;
+      background: white;
+      cursor: pointer;
+    }
+    .controls {
+      margin-top: 20px;
+    }
+    .output {
+      margin-top: 20px;
+      font-family: monospace;
+      background: #eef2f8;
+      padding: 10px;
+      border-radius: 8px;
+      color: #333;
+      display: inline-block;
+    }
+    .tooltip {
+      position: absolute;
+      background: #333;
+      color: #fff;
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+    }
+    .comparison {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      margin: 10px auto;
+      width: 300px;
+    }
+    th, td {
+      border: 1px solid #555;
+      padding: 4px 8px;
+    }
+    th {
+      background: #ccd9f0;
+    }
+    .bit-summary {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>音のデジタル化体験🎵</h1>
+  <p>マイクで録音した音波形またはランダムな波形を使って、<br>標本化・量子化・符号化のプロセスを体験しましょう！</p>
+
+  <div class="controls">
+    <label>🎚 サンプリング周波数（点の数）: <input type="range" id="samplingRate" min="4" max="64" value="16"></label>
+    <span id="samplingValue">16</span><br>
+    <label>🎛 量子化ビット数: <input type="range" id="bitDepth" min="2" max="8" value="4"></label>
+    <span id="bitDepthValue">4</span><br>
+    <button onclick="processAudio()">🚀 デジタル変換</button>
+    <button onclick="startMic()">🎤 マイク入力開始</button>
+    <button onclick="stopMic()">⏹ 録音停止</button>
+    <button onclick="useRandomWaveform()">✨ ランダム波形を使用</button>
+  </div>
+
+  <canvas id="waveformCanvas" width="300" height="200"></canvas>
+  <div class="tooltip" id="tooltip"></div>
+  <div class="comparison">
+    <div class="output">
+      <table id="binaryTable">
+        <thead>
+          <tr><th>サンプル</th><th>量子化値</th><th>2進数</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="bit-summary" id="bitSummary"></div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("waveformCanvas");
+    const ctx = canvas.getContext("2d");
+    const tooltip = document.getElementById("tooltip");
+    let waveform = new Array(100).fill(0);
+    let samplePoints = [];
+    let animationId = null;
+    let audioCtx, analyser, dataArray, source;
+
+    function drawGrid(sampleCount, bitDepth) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = "#ddd";
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= sampleCount; i++) {
+        const x = (i / sampleCount) * canvas.width;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+
+      const levels = Math.pow(2, bitDepth);
+      for (let i = 0; i < levels; i++) {
+        const y = (i / (levels - 1)) * canvas.height;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawWaveform() {
+      const sampleCount = parseInt(document.getElementById("samplingRate").value);
+      const bitDepth = parseInt(document.getElementById("bitDepth").value);
+      drawGrid(sampleCount, bitDepth);
+
+      ctx.beginPath();
+      ctx.strokeStyle = "black";
+      for (let i = 0; i < waveform.length; i++) {
+        const x = (i / (waveform.length - 1)) * canvas.width;
+        const y = (1 - (waveform[i] + 1) / 2) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    function processAudio() {
+      const sampleCount = parseInt(document.getElementById("samplingRate").value);
+      const bitDepth = parseInt(document.getElementById("bitDepth").value);
+      document.getElementById("samplingValue").innerText = sampleCount;
+      document.getElementById("bitDepthValue").innerText = bitDepth;
+      samplePoints = [];
+
+      drawGrid(sampleCount, bitDepth);
+      ctx.beginPath();
+      ctx.strokeStyle = "black";
+      for (let i = 0; i < waveform.length; i++) {
+        const x = (i / (waveform.length - 1)) * canvas.width;
+        const y = (1 - (waveform[i] + 1) / 2) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      const levels = Math.pow(2, bitDepth);
+      const tbody = document.querySelector("#binaryTable tbody");
+      tbody.innerHTML = "";
+
+      for (let i = 0; i <= sampleCount; i++) {
+        const t = i / sampleCount;
+        const index = Math.round(t * (waveform.length - 1));
+        const sample = waveform[index];
+        const normalized = Math.max(0, Math.min(1, (sample + 1) / 2));
+        const quantized = Math.min(Math.floor(normalized * levels), levels - 1);
+        const binary = quantized.toString(2).padStart(bitDepth, '0');
+
+        const x = t * canvas.width;
+        const y = (1 - (sample + 1) / 2) * canvas.height;
+
+        samplePoints.push({ x, y, index: i, quantized, binary });
+
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${i}</td><td>${quantized}</td><td>${binary}</td>`;
+        tbody.appendChild(row);
+      }
+
+      const totalBits = (sampleCount + 1) * bitDepth;
+      document.getElementById("bitSummary").innerText = `この条件で必要なビット数: ${(sampleCount + 1)} × ${bitDepth} = ${totalBits}ビット`;
+    }
+
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      for (let pt of samplePoints) {
+        const dx = pt.x - mx;
+        const dy = pt.y - my;
+        if (dx * dx + dy * dy < 25) {
+          tooltip.style.left = `${e.pageX + 10}px`;
+          tooltip.style.top = `${e.pageY - 20}px`;
+          tooltip.innerText = `No.${pt.index}\n量子化: ${pt.quantized}`;
+          tooltip.style.display = "block";
+          return;
+        }
+      }
+      tooltip.style.display = "none";
+    });
+
+    document.getElementById("samplingRate").addEventListener("input", () => {
+      const val = parseInt(document.getElementById("samplingRate").value);
+      document.getElementById("samplingValue").innerText = val;
+      drawWaveform();
+    });
+
+    document.getElementById("bitDepth").addEventListener("input", () => {
+      const val = parseInt(document.getElementById("bitDepth").value);
+      document.getElementById("bitDepthValue").innerText = val;
+      drawWaveform();
+    });
+
+    function startMic() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          source = audioCtx.createMediaStreamSource(stream);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 2048;
+          const bufferLength = analyser.fftSize;
+          dataArray = new Float32Array(bufferLength);
+
+          source.connect(analyser);
+
+          function capture() {
+            analyser.getFloatTimeDomainData(dataArray);
+            waveform = Array.from(dataArray.slice(0, 100));
+            drawWaveform();
+            animationId = requestAnimationFrame(capture);
+          }
+
+          capture();
+        })
+        .catch(err => {
+          alert("マイクへのアクセスが拒否されました: " + err);
+        });
+    }
+
+    function stopMic() {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      if (audioCtx) {
+        audioCtx.close();
+        audioCtx = null;
+      }
+    }
+
+    function useRandomWaveform() {
+      stopMic();
+      waveform = Array.from({ length: 100 }, (_, i) => Math.sin(i * 0.15) + (Math.random() - 0.5) * 0.5);
+      drawWaveform();
+    }
+
+    drawWaveform();
+  </script>
+</body>
+</html>
