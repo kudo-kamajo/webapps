@@ -117,12 +117,18 @@
   const finalStats = document.getElementById('final-stats');
   const countdownDisplay = document.getElementById('countdown');
 
-  function getBitLength() {
-    const level = document.getElementById('level-select').value;
-    if (level === 'easy') return 4;
-    if (level === 'medium') return 8;
-    return Math.floor(Math.random() * 4) + 5;
+function getBitLength() {
+  const level = document.getElementById('level-select').value;
+  const mode = document.getElementById('mode-select').value;
+
+  if (level === 'easy') return 4;
+  if (level === 'medium') return 8;
+  if (level === 'hard') {
+    if (mode === 'hex-to-bin') return 8; // ← 必ず8桁必要
+    return Math.floor(Math.random() * 4) + 5; // 5〜8桁
   }
+  return 4;
+}
 
   function setButtonState(newState) {
     state = newState;
