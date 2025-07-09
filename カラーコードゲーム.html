@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎨RGBカラー合わせゲーム🎨</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+      background: linear-gradient(to right, #f9f9f9, #e0f7fa);
+      color: #333;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    .description {
+      margin: 10px auto;
+      font-size: 1em;
+      max-width: 600px;
+      color: #555;
+    }
+    .color-boxes {
+      display: flex;
+      justify-content: center;
+      margin: 20px;
+    }
+    .box {
+      width: 150px;
+      height: 150px;
+      margin: 0 20px;
+      border: 3px solid #ccc;
+      border-radius: 10px;
+    }
+    #startBtn {
+      margin: 10px auto;
+      padding: 10px 20px;
+      font-size: 1em;
+      background-color: #29b6f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #startBtn:hover {
+      background-color: #0288d1;
+    }
+    .slider-container {
+      width: 300px;
+      margin: 10px auto;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    label[for="rRange"] { color: red; }
+    label[for="gRange"] { color: green; }
+    label[for="bRange"] { color: blue; }
+
+    .timer {
+      font-size: 2.5em;
+      margin: 15px;
+      padding: 10px;
+      color: #ffffff;
+      background-color: #d32f2f;
+      display: inline-block;
+      border-radius: 10px;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+      font-weight: bold;
+    }
+    .score, .hex-codes {
+      font-size: 1.2em;
+      margin: 10px;
+    }
+    .score.animate {
+      animation: pop 0.6s ease;
+    }
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    .hex-red { color: red; }
+    .hex-green { color: green; }
+    .hex-blue { color: blue; }
+    .title {
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+    .strength-bar {
+      display: flex;
+      justify-content: center;
+      margin-top: 5px;
+    }
+    .bar {
+      width: 10px;
+      height: 20px;
+      margin: 0 1px;
+      background-color: #ccc;
+    }
+    .bar.active.red { background-color: red; }
+    .bar.active.green { background-color: green; }
+    .bar.active.blue { background-color: blue; }
+  </style>
+</head>
+<body>
+  <h1>🎨RGBカラー合わせゲーム🎨</h1>
+  <div class="description">
+    ランダムに表示された色に、スライダーでRGBの値を調整してできるだけ近づけよう！<br />
+    制限時間は15秒。あなたの色と目標の色がどれくらい近いかでスコアが決まります。
+  </div>
+  <button id="startBtn">スタート</button>
+  <div class="timer">残り時間: <span id="timer">15</span> 秒</div>
+
+  <div class="color-boxes">
+    <div>
+      <p>目標の色</p>
+      <div class="box" id="targetColor"></div>
+    </div>
+    <div>
+      <p>作った色</p>
+      <div class="box" id="yourColor"></div>
+    </div>
+  </div>
+
+  <div class="slider-container">
+    <label for="rRange">赤 (R): <span id="rVal">0</span></label>
+    <input type="range" id="rRange" min="0" max="255" value="0" />
+    <label for="gRange">緑 (G): <span id="gVal">0</span></label>
+    <input type="range" id="gRange" min="0" max="255" value="0" />
+    <label for="bRange">青 (B): <span id="bVal">0</span></label>
+    <input type="range" id="bRange" min="0" max="255" value="0" />
+  </div>
+
+  <div class="hex-codes">
+    あなたのカラーコード: <span id="yourHex"></span>
+  </div>
+  <div class="score" id="score"></div>
+  <div class="hex-codes" id="correctHex"></div>
+  <div id="colorStrengthBars"></div>
+
+  <script>
+    const targetBox = document.getElementById('targetColor');
+    const yourBox = document.getElementById('yourColor');
+    const rRange = document.getElementById('rRange');
+    const gRange = document.getElementById('gRange');
+    const bRange = document.getElementById('bRange');
+    const rVal = document.getElementById('rVal');
+    const gVal = document.getElementById('gVal');
+    const bVal = document.getElementById('bVal');
+    const yourHex = document.getElementById('yourHex');
+    const timer = document.getElementById('timer');
+    const scoreDisplay = document.getElementById('score');
+    const correctHex = document.getElementById('correctHex');
+    const startBtn = document.getElementById('startBtn');
+    const colorStrengthBars = document.getElementById('colorStrengthBars');
+
+    let targetRGB = { r: 0, g: 0, b: 0 };
+    let timeLeft = 15;
+    let countdown;
+
+    function getRandomColor() {
+      return {
+        r: Math.floor(Math.random() * 256),
+        g: Math.floor(Math.random() * 256),
+        b: Math.floor(Math.random() * 256)
+      };
+    }
+
+    function rgbToHex(r, g, b) {
+      return (
+        '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('')
+      ).toUpperCase();
+    }
+
+    function styleHex(hex) {
+      return (
+        '<span class="hex-red">' + hex.slice(1, 3) + '</span>' +
+        '<span class="hex-green">' + hex.slice(3, 5) + '</span>' +
+        '<span class="hex-blue">' + hex.slice(5, 7) + '</span>'
+      );
+    }
+
+function updateYourColor() {
+  const r = parseInt(rRange.value);
+  const g = parseInt(gRange.value);
+  const b = parseInt(bRange.value);
+  rVal.textContent = `${r} (${r.toString(16).toUpperCase().padStart(2, '0')})`;
+  gVal.textContent = `${g} (${g.toString(16).toUpperCase().padStart(2, '0')})`;
+  bVal.textContent = `${b} (${b.toString(16).toUpperCase().padStart(2, '0')})`;
+  const hex = rgbToHex(r, g, b);
+  yourHex.innerHTML = '#' + styleHex(hex);
+  yourBox.style.backgroundColor = hex;
+}
+
+    function showColorStrengthBars(rgb, idPrefix) {
+      const containerWrapper = document.createElement('div');
+      ['r','g','b'].forEach(channel => {
+        const container = document.createElement('div');
+        container.className = 'strength-bar';
+        const value = rgb[channel];
+        const colorClass = channel === 'r' ? 'red' : channel === 'g' ? 'green' : 'blue';
+        const level = Math.round(value / 16); // 16段階
+        for (let i = 0; i < 16; i++) {
+          const bar = document.createElement('div');
+          bar.className = 'bar' + (i < level ? ` active ${colorClass}` : '');
+          container.appendChild(bar);
+        }
+        const label = document.createElement('div');
+        label.textContent = `${colorClass.toUpperCase()}: ${value}`;
+        label.style.marginTop = '5px';
+        label.style.fontWeight = 'bold';
+        label.style.color = colorClass;
+        container.appendChild(label);
+        containerWrapper.appendChild(container);
+      });
+      return containerWrapper;
+    }
+
+    function startGame() {
+      targetRGB = getRandomColor();
+      const targetHex = rgbToHex(targetRGB.r, targetRGB.g, targetRGB.b);
+      targetBox.style.backgroundColor = targetHex;
+
+      // 正解の色のグラフは非表示、作った色のみ表示
+      colorStrengthBars.innerHTML = '';
+      colorStrengthBars.appendChild(showColorStrengthBars({ r: 0, g: 0, b: 0 }, 'your'));
+
+      rRange.value = 0;
+      gRange.value = 0;
+      bRange.value = 0;
+      updateYourColor();
+      scoreDisplay.textContent = '';
+      scoreDisplay.classList.remove('animate');
+      correctHex.textContent = '';
+      timeLeft = 15;
+      timer.textContent = timeLeft;
+
+      rRange.disabled = false;
+      gRange.disabled = false;
+      bRange.disabled = false;
+
+      countdown = setInterval(() => {
+        timeLeft--;
+        timer.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(countdown);
+
+          rRange.disabled = true;
+          gRange.disabled = true;
+          bRange.disabled = true;
+
+          showResult();
+        }
+      }, 1000);
+    }
+
+    function showResult() {
+      const r = parseInt(rRange.value);
+      const g = parseInt(gRange.value);
+      const b = parseInt(bRange.value);
+      const diff = 0.3 * Math.pow(r - targetRGB.r, 2) +
+                   0.59 * Math.pow(g - targetRGB.g, 2) +
+                   0.11 * Math.pow(b - targetRGB.b, 2);
+      const maxDiff = 0.3 * Math.pow(255, 2) + 0.59 * Math.pow(255, 2) + 0.11 * Math.pow(255, 2);
+      const normalizedDiff = diff / maxDiff;
+      const score = Math.max(0, Math.round(1000 * Math.pow(1 - normalizedDiff, 2.5)));
+      let title = '';
+
+      if (score === 1000) {
+        title = '完璧！すごい！';
+      } else if (score > 900) {
+        title = '非常に近い！';
+      } else if (score > 700) {
+        title = 'なかなかいいね！';
+      } else if (score > 500) {
+        title = 'もう少し！';
+      } else {
+        title = '再チャレンジ！';
+      }
+
+      scoreDisplay.innerHTML = `<div class="title">${title}</div>スコア: ${score} 点／1000点満点`;
+      scoreDisplay.classList.add('animate');
+      correctHex.innerHTML = `正解のカラーコード: #${styleHex(rgbToHex(targetRGB.r, targetRGB.g, targetRGB.b))}（R: ${targetRGB.r}, G: ${targetRGB.g}, B: ${targetRGB.b}）`;
+
+      // 作った色と正解の色の両方を表示
+      colorStrengthBars.innerHTML = '<h3>作った色</h3>';
+      colorStrengthBars.appendChild(showColorStrengthBars({ r, g, b }, 'your'));
+      const divider = document.createElement('hr');
+      colorStrengthBars.appendChild(divider);
+      colorStrengthBars.innerHTML += '<h3>正解の色</h3>';
+      colorStrengthBars.appendChild(showColorStrengthBars(targetRGB, 'target'));
+    }
+
+
+
+    rRange.addEventListener('input', updateYourColor);
+    gRange.addEventListener('input', updateYourColor);
+    bRange.addEventListener('input', updateYourColor);
+    startBtn.addEventListener('click', () => {
+      clearInterval(countdown);
+      startGame();
+    });
+
+    updateYourColor();
+  </script>
+</body>
+</html>

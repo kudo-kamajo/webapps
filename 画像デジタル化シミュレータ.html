@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>画像のデジタル化シミュレーター</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 20px;
+      background: linear-gradient(to right, #f0f9ff, #e0f7fa);
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #0077b6;
+      margin-bottom: 40px;
+    }
+
+    .section {
+      margin-bottom: 40px;
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .controls label {
+      font-weight: bold;
+      display: inline-block;
+      margin-top: 10px;
+    }
+
+    .inline-info {
+      margin-left: 10px;
+      font-weight: normal;
+      color: #555;
+    }
+
+    .description {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    canvas {
+      border: 2px solid #0077b6;
+      border-radius: 10px;
+    }
+
+    input[type=range] {
+      width: 100%;
+    }
+
+    input[type=file] {
+      margin-top: 10px;
+    }
+
+    .canvas-container {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .canvas-label {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    #data-size {
+      font-size: 16px;
+      margin-top: 20px;
+      color: #444;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>画像のデジタル化シミュレーター</h1>
+
+  <div class="section controls">
+    <div class="description">【標本化】画像の細かさ（解像度）を変更すると、どれだけ細かく画像を表現できるかがわかります。</div>
+    <label for="resolution">解像度（標本化）:
+      <span class="inline-info" id="resolution-info">256 × 256ピクセル</span>
+    </label>
+    <input type="range" id="resolution" min="10" max="512" value="256">
+
+    <div class="description">【量子化】色の段階（階調数）を変更すると、色のなめらかさが変わります。</div>
+    <label for="quantization">階調数（量子化）:
+      <span class="inline-info" id="quantization-info">64階調 / 6ビット</span>
+    </label>
+    <input type="range" id="quantization" min="1" max="8" step="1" value="6">
+
+    <div class="description">【符号化】色の情報はビット数で表されます。階調が増えると必要なビットも増えます。</div>
+
+    <label>元画像を選んでください：</label>
+    <input type="file" id="imageLoader" accept="image/*">
+  </div>
+
+  <div class="section">
+    <h2>元画像と変換後の画像</h2>
+    <div class="canvas-container">
+      <div>
+        <canvas id="originalCanvas" width="256" height="256"></canvas>
+        <div class="canvas-label">元画像</div>
+      </div>
+      <div>
+        <canvas id="outputCanvas" width="256" height="256"></canvas>
+        <div class="canvas-label">変換後の画像</div>
+      </div>
+    </div>
+    <div id="data-size">データ量: 未計算</div>
+  </div>
+
+  <script>
+    const resolutionSlider = document.getElementById("resolution");
+    const quantizationSlider = document.getElementById("quantization");
+    const resolutionInfo = document.getElementById("resolution-info");
+    const quantizationInfo = document.getElementById("quantization-info");
+    const canvas = document.getElementById("outputCanvas");
+    const originalCanvas = document.getElementById("originalCanvas");
+    const ctx = canvas.getContext("2d");
+    const originalCtx = originalCanvas.getContext("2d");
+    const imageLoader = document.getElementById("imageLoader");
+    const dataSize = document.getElementById("data-size");
+
+    let originalImage = new Image();
+
+    imageLoader.addEventListener("change", handleImageUpload);
+    resolutionSlider.addEventListener("input", update);
+    quantizationSlider.addEventListener("input", update);
+
+    function handleImageUpload(e) {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        originalImage.src = event.target.result;
+        originalImage.onload = () => update();
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+
+    function update() {
+      const resolution = parseInt(resolutionSlider.value);
+      const bitDepth = parseInt(quantizationSlider.value);
+      const quantLevels = Math.pow(2, bitDepth);
+
+      resolutionInfo.textContent = `${resolution} × ${resolution}ピクセル`;
+      quantizationInfo.textContent = `${quantLevels}階調 / ${bitDepth}ビット`;
+
+      if (!originalImage.src) return;
+
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = resolution;
+      tempCanvas.height = resolution;
+      const tempCtx = tempCanvas.getContext("2d");
+
+      tempCtx.drawImage(originalImage, 0, 0, resolution, resolution);
+      let imageData = tempCtx.getImageData(0, 0, resolution, resolution);
+      let data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        data[i]   = Math.floor(data[i]   / 256 * quantLevels) * (256 / quantLevels); // R
+        data[i+1] = Math.floor(data[i+1] / 256 * quantLevels) * (256 / quantLevels); // G
+        data[i+2] = Math.floor(data[i+2] / 256 * quantLevels) * (256 / quantLevels); // B
+      }
+      tempCtx.putImageData(imageData, 0, 0);
+
+      originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
+      originalCtx.drawImage(originalImage, 0, 0, originalCanvas.width, originalCanvas.height);
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+
+      const pixels = resolution * resolution;
+      const totalBits = bitDepth * 3 * pixels;
+      const totalBytes = Math.round(totalBits / 8);
+
+      dataSize.textContent = `データ量: 1色あたりのデータ量 ${bitDepth}ビット × RGB3色 × 画素数 ${resolution} × ${resolution}ピクセル = ${totalBits}ビット = 約 ${totalBytes}バイト`;
+    }
+  </script>
+</body>
+</html>
