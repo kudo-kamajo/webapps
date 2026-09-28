@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小テスト採点マスター ～丸付けで徳を積みし者～</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', 'Kosugi Maru', sans-serif;
+            background-color: #f3f4f6;
+            user-select: none;
+        }
+        .chalkboard {
+            background-color: #1b4332;
+            background-image: radial-gradient(#2d6a4f 1px, transparent 1px);
+            background-size: 16px 16px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 8px 0 #0d2818;
+            border: 12px solid #8d5b4c;
+            transition: all 0.5s ease;
+        }
+
+        /* 徳に応じた黒板オーラエフェクト */
+        .aura-ch2 {
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 8px 0 #0d2818, 0 0 15px rgba(52, 211, 153, 0.4);
+        }
+        .aura-ch3 {
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 8px 0 #0d2818, 0 0 25px rgba(251, 191, 36, 0.6);
+            border-color: #a16207;
+        }
+        .aura-ch4 {
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 8px 0 #0d2818, 0 0 35px rgba(245, 158, 11, 0.9), 0 0 10px rgba(255, 255, 255, 0.8);
+            border-color: #ca8a04;
+        }
+        .aura-ch5 {
+            animation: pulse-god 2s infinite alternate;
+            border-color: #eab308;
+        }
+        @keyframes pulse-god {
+            0% { box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 8px 0 #0d2818, 0 0 30px rgba(234, 179, 8, 0.8); }
+            100% { box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 8px 0 #0d2818, 0 0 60px rgba(250, 204, 21, 1), 0 0 20px rgba(255, 255, 255, 1); }
+        }
+
+        .test-paper {
+            background: #fffef0;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            background-image: linear-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 100% 2.2rem;
+        }
+        .shop-btn {
+            touch-action: manipulation;
+        }
+        .shop-btn * {
+            pointer-events: none;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col justify-between">
+
+    <header class="bg-red-600 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-white text-red-600 p-2 rounded-full font-black text-xl shadow">
+                    <i data-lucide="edit-3"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-extrabold tracking-wider">小テスト採点マスター</h1>
+                    <p class="text-xs text-red-100 hidden sm:block">～丸付けで徳を積みし者～</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button id="helpBtn" onclick="openHelpModal()" class="p-2 bg-red-700 hover:bg-red-800 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1 transition">
+                    <i data-lucide="help-circle"></i>
+                    <span>遊び方</span>
+                </button>
+                <button id="soundToggleBtn" onclick="toggleSound()" class="p-2 bg-red-700 hover:bg-red-800 rounded-lg text-xs md:text-sm font-bold flex items-center gap-1 transition">
+                    <i data-lucide="volume-2" id="soundIcon"></i>
+                    <span id="soundStatus">SOUND: ON</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-3 md:p-6 w-full grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        
+        <!-- 左側パネル: 採点エリアとステータス表示 -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+            
+            <div id="chalkboardArea" class="chalkboard rounded-2xl p-4 md:p-6 text-white relative overflow-hidden">
+                
+                <!-- 称号 & 累計徳 & コンボバッジ -->
+                <div class="flex flex-wrap justify-between items-center mb-2 pb-2 border-b border-emerald-600/40 gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs text-emerald-300 font-bold">【現在の称号】</span>
+                        <span id="titleBadge" class="bg-amber-400 text-slate-900 px-3 py-0.5 rounded-full text-xs font-black shadow flex items-center gap-1">
+                            <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                            <span id="titleText">駆け出し丸付け人</span>
+                        </span>
+                        <span class="text-xs text-emerald-200 font-bold bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                            通算獲得: <span id="totalVirtueDisplay" class="text-yellow-300 font-extrabold">0</span> 徳
+                        </span>
+                    </div>
+                    <span id="comboBadge" class="bg-amber-400 text-slate-900 px-2.5 py-0.5 rounded-full text-xs font-black animate-pulse">
+                        COMBO x1
+                    </span>
+                </div>
+                
+                <!-- 各種パラメータ -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center my-2">
+                    <div class="bg-emerald-900/50 p-2 rounded-xl border border-emerald-500/30">
+                        <span class="text-xs text-emerald-200 block">所持している徳</span>
+                        <span id="scoreDisplay" class="text-xl md:text-2xl font-extrabold text-yellow-300">0</span>
+                        <span class="text-[10px] text-emerald-300 block">徳</span>
+                    </div>
+                    <div class="bg-emerald-900/50 p-2 rounded-xl border border-emerald-500/30">
+                        <span class="text-xs text-emerald-200 block">自動で積む徳</span>
+                        <span id="ppsDisplay" class="text-xl md:text-2xl font-extrabold text-emerald-300">0</span>
+                        <span class="text-[10px] text-emerald-300 block">徳/秒</span>
+                    </div>
+                    <div class="bg-emerald-900/50 p-2 rounded-xl border border-emerald-500/30">
+                        <span class="text-xs text-emerald-200 block">返却済み答案</span>
+                        <span id="returnedPapersDisplay" class="text-xl md:text-2xl font-extrabold text-sky-300">0</span>
+                        <span class="text-[10px] text-emerald-300 block">枚</span>
+                    </div>
+                    <div class="bg-emerald-900/50 p-2 rounded-xl border border-emerald-500/30">
+                        <span class="text-xs text-emerald-200 block">採点正確率</span>
+                        <span id="accuracyDisplay" class="text-xl md:text-2xl font-extrabold text-pink-300">100%</span>
+                        <span class="text-[10px] text-emerald-300 block">ミスに注意！</span>
+                    </div>
+                </div>
+
+                <!-- 生徒のコメント吹き出しエリア（動的表示） -->
+                <div id="studentCommentBox" class="hidden mt-3 bg-white/95 text-slate-800 p-2.5 rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 border-2 border-amber-300 animate-bounce">
+                    <div class="bg-amber-100 text-amber-700 p-1.5 rounded-full flex-shrink-0">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-amber-800 block font-normal">生徒の反応:</span>
+                        <span id="studentCommentText">「先生、なんか今日の○いつもより綺麗で嬉しいです！」</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="testPaperCard" class="test-paper rounded-2xl border-2 border-amber-200/80 p-4 md:p-6 relative transition-all duration-300 transform">
+                
+                <!-- 用紙ヘッダー -->
+                <div class="border-b-2 border-red-400 pb-3 mb-4 flex justify-between items-end">
+                    <div>
+                        <div class="text-xs text-red-500 font-bold tracking-wider">令和8年度 数学小テスト (中学計算)</div>
+                        <h2 class="text-xl font-black text-slate-800">第 <span id="classNumberDisplay">1</span> 組 <span id="studentNumberDisplay">1</span> 番　計算力確認テスト</h2>
+                    </div>
+                    <div class="text-right border-2 border-red-500 rounded-xl px-3 py-1 bg-red-50/80">
+                        <span class="text-[10px] text-red-600 block font-bold">生徒の得点</span>
+                        <span id="paperScoreDisplay" class="text-2xl font-black text-red-600">--</span>
+                        <span class="text-xs text-red-500 font-bold">/100</span>
+                    </div>
+                </div>
+
+                <!-- 採点進行度バー -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-xs font-bold text-slate-600 mb-1">
+                        <span>採点進行度 (<span id="gradedCountDisplay">0</span> / 10問)</span>
+                        <span id="paperStatusText" class="text-red-600">採点中...</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="paperProgressBar" class="bg-red-500 h-2.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 現在問題表示枠 -->
+                <div id="activeQuestionArea" class="bg-amber-50/80 border-2 border-amber-300 rounded-2xl p-4 mb-4 text-center relative shadow-sm">
+                    <div class="absolute -top-3 left-4 bg-amber-400 text-slate-900 text-xs font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span>採点中の問題</span>
+                        <span id="assistantStatusBadge" class="hidden text-[10px] bg-emerald-700 text-white px-1.5 py-0.2 rounded-full font-normal">バイト待機中</span>
+                    </div>
+                    
+                    <div class="text-xs text-slate-500 mb-1 font-bold">問題 <span id="currentQNum">1</span></div>
+                    
+                    <div class="flex items-center justify-center gap-3 text-2xl md:text-3xl font-extrabold text-slate-800 my-1">
+                        <span id="currentExpr">7 + 8 =</span>
+                        <span id="currentStudentAns" class="bg-white border-2 border-slate-400 px-3 py-1 rounded-xl text-indigo-700 shadow-inner">15</span>
+                    </div>
+
+                    <!-- 模範解答アシスト機能 -->
+                    <div id="answerKeyHint" class="hidden text-xs font-bold text-emerald-600 mt-1 flex items-center justify-center gap-1">
+                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                        模範解答: <span id="correctAnswerValue" class="underline">15</span>
+                        <span id="judgementHint" class="ml-2 font-black px-1.5 py-0.5 rounded text-white text-[10px]"></span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <button id="btnMaru" onclick="gradeCurrent(true)" class="group relative bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-extrabold py-4 px-6 rounded-2xl shadow-lg border-b-4 border-emerald-700 transition flex flex-col items-center justify-center gap-1">
+                        <div class="flex items-center gap-2 text-2xl md:text-3xl">
+                            <i data-lucide="circle" class="stroke-[3]"></i>
+                            <span>正しい (○)</span>
+                        </div>
+                        <span class="text-[11px] bg-emerald-700/50 px-2 py-0.5 rounded-full text-emerald-100 font-normal">
+                            [キー: O / ←]
+                        </span>
+                    </button>
+
+                    <button id="btnBatsu" onclick="gradeCurrent(false)" class="group relative bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-extrabold py-4 px-6 rounded-2xl shadow-lg border-b-4 border-indigo-700 transition flex flex-col items-center justify-center gap-1">
+                        <div class="flex items-center gap-2 text-2xl md:text-3xl">
+                            <i data-lucide="x" class="stroke-[3]"></i>
+                            <span>間違い (×)</span>
+                        </div>
+                        <span class="text-[11px] bg-indigo-700/50 px-2 py-0.5 rounded-full text-indigo-100 font-normal">
+                            [キー: X / →]
+                        </span>
+                    </button>
+                </div>
+
+                <!-- 返却ボタン -->
+                <button id="returnPaperBtn" disabled onclick="returnPaper()" class="w-full bg-slate-300 text-slate-500 font-black py-4 px-6 rounded-2xl shadow border-b-4 border-slate-400 cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 text-lg">
+                    <i data-lucide="send"></i>
+                    <span id="returnBtnText">10問すべて採点してください</span>
+                </button>
+
+                <!-- 10問解答一覧 -->
+                <div class="mt-6 border-t pt-4 border-slate-200">
+                    <div class="text-xs font-bold text-slate-500 mb-2">【解答一覧】</div>
+                    <div id="questionsGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs"></div>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-4 md:p-5 flex-grow flex flex-col">
+                <div class="flex justify-between items-center border-b pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="bg-amber-100 text-amber-700 p-2 rounded-xl">
+                            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-extrabold text-slate-800 text-lg">採点効率化ショップ</h3>
+                            <p class="text-xs text-slate-500">徳を消費して採点を自動化＆効率化！</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 採点正確率警告メッセージ -->
+                <div id="accuracyWarning" class="hidden mb-3 p-3 bg-red-100 border-2 border-red-400 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2 animate-pulse">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0 text-red-600"></i>
+                    <div>
+                        <span class="font-black text-red-800 text-sm block">⚠️ 採点正確率が80%未満です！</span>
+                        <span>正解率が低いためショップがロックされています。正確に丸付けを行い、正解率を80%以上に回復させてください。</span>
+                    </div>
+                </div>
+
+                <!-- ショップアイテム一覧 -->
+                <div id="shopList" class="flex flex-col gap-3 overflow-y-auto max-h-[600px] pr-1"></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="welcomeModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-xl w-full p-6 text-slate-800 shadow-2xl border-4 border-amber-400 relative my-auto">
+            
+            <!-- モーダルヘッダー -->
+            <div class="text-center mb-4">
+                <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-inner">
+                    <i data-lucide="sparkles" class="w-7 h-7"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800">小テスト採点マスター</h2>
+                <p class="text-xs text-red-600 font-bold">～丸付けで徳を積みし者～</p>
+            </div>
+
+            <!-- プロローグ -->
+            <div class="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 mb-4 text-xs leading-relaxed text-slate-700">
+                <div class="font-extrabold text-amber-800 mb-1 flex items-center gap-1 text-sm">
+                    <i data-lucide="book-open" class="w-4 h-4"></i>
+                    <span>プロローグ：無限の小テストと「徳」</span>
+                </div>
+                <p>
+                    舞台はとある中学校。数学担当のあなたのデスクには、毎日山のように積み上がる小テストの答案用紙……。定時退勤の夢が潰えかけたその時、あなたは気づく。
+                    <br><span class="font-bold text-amber-900">「一枚一枚の答案に向き合い、正解に丸をつけ導く行為……これこそ世の中で最高の『徳を積む行為』なのでは！？」</span>
+                    <br>その瞬間、あなたの手にある赤ペンが光を帯びた！
+                </p>
+            </div>
+
+            <!-- ゲームの目的 -->
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 text-xs">
+                <div class="font-extrabold text-emerald-800 mb-1 flex items-center gap-1 text-sm">
+                    <i data-lucide="target" class="w-4 h-4"></i>
+                    <span>ゲームの目的</span>
+                </div>
+                <p class="text-slate-700 font-bold mb-1">
+                    🎯 採点をして徳を積み、積んだ徳でアイテムを手に入れ、より徳を積もう！
+                </p>
+                <ul class="list-disc list-inside text-slate-600 space-y-1 pl-1">
+                    <li>正確に丸付け（○/×）を行って答案を仕上げ、返却して一気に徳を獲得！</li>
+                    <li>徳を使って「高級赤ペン」や「全自動返却機」等のショップアイテムを解放・強化！</li>
+                    <li>徳を大量に獲得し、職員室の守護神から伝説の<b>『定時退勤の神』</b>を目指せ！</li>
+                </ul>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-5">
+                <div class="font-extrabold text-slate-800 mb-2 flex items-center gap-1 text-sm">
+                    <i data-lucide="keyboard" class="w-4 h-4 text-indigo-600"></i>
+                    <span>操作方法（キーボード対応）</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div class="bg-white p-2.5 rounded-xl border shadow-sm">
+                        <div class="font-black text-emerald-600 text-sm mb-0.5">○ (正しい)</div>
+                        <div class="font-mono bg-slate-100 rounded px-1 py-0.5 text-[11px] text-slate-700 font-bold border">O キー</div>
+                        <div class="text-[10px] text-slate-400 mt-1">または [←] キー</div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border shadow-sm">
+                        <div class="font-black text-indigo-600 text-sm mb-0.5">× (間違い)</div>
+                        <div class="font-mono bg-slate-100 rounded px-1 py-0.5 text-[11px] text-slate-700 font-bold border">X キー</div>
+                        <div class="text-[10px] text-slate-400 mt-1">または [→] キー</div>
+                    </div>
+                    <div class="bg-white p-2.5 rounded-xl border shadow-sm">
+                        <div class="font-black text-pink-600 text-sm mb-0.5">生徒へ返却</div>
+                        <div class="font-mono bg-slate-100 rounded px-1 py-0.5 text-[11px] text-slate-700 font-bold border">Enter</div>
+                        <div class="text-[10px] text-slate-400 mt-1">または [Space]</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 開始ボタン -->
+            <button onclick="closeWelcomeModal()" class="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:brightness-110 text-white font-black py-3.5 px-6 rounded-2xl shadow-lg active:scale-95 transition text-base">
+                採点を開始して徳を積む！
+            </button>
+        </div>
+    </div>
+
+    <div id="storyModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 text-center shadow-2xl border-4 border-amber-400 animate-fade-in relative">
+            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow">
+                <i data-lucide="sparkles" class="w-8 h-8"></i>
+            </div>
+            <div id="storyChapterTitle" class="text-xs font-black text-amber-600 tracking-wider">第1章：積徳の始まり</div>
+            <h3 id="storyHeading" class="text-2xl font-black text-slate-800 my-1">徳の奇跡が起き始めた！</h3>
+            <div id="storyBodyText" class="text-sm text-slate-600 my-4 leading-relaxed bg-slate-50 p-4 rounded-2xl text-left border">
+                手作業で○×を重ねる中で、あなたは「徳」の存在を実感し始める。板書中のチョークが絶対に折れなくなり、赤ペンのインクも無限に湧き出しているようだ...
+            </div>
+            <button onclick="closeStoryModal()" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-white font-extrabold py-3 px-6 rounded-2xl shadow-lg hover:brightness-110 active:scale-95 transition">
+                徳の導きを進める
+            </button>
+        </div>
+    </div>
+
+    <footer class="bg-slate-800 text-slate-400 py-4 text-center text-xs mt-6 border-t border-slate-700">
+        <p>小テスト採点マスター - Math Test Grading Clicker Game &copy; 2026</p>
+        <p class="text-slate-500 mt-1">ショートカットキー: [O / ←] 正しい | [X / →] 間違い | [Enter / Space] 返却</p>
+    </footer>
+
+    <script>
+        // ゲーム状態の管理
+        let state = {
+            score: 0,                   // 現在所持している「徳」
+            totalVirtueEarned: 0,       // 通算（累計）で溜めた「徳」（ストーリー進行用）
+            totalPapersReturned: 0,
+            combo: 0,
+            totalCorrectGrading: 0,
+            totalGradingAttempts: 0,
+            soundEnabled: true,
+            classNum: 1,
+            studentNum: 1,
+            unlockedChapters: [],       // 解放済みストーリー章 [1, 2, 3, 4, 5]
+            
+            // アップグレードステータス
+            ptsPerClick: 1,
+            autoPtsPerSec: 0,
+            autoReturnUnlocked: false,
+            answerKeyUnlocked: false,
+
+            upgrades: {
+                redPen: { level: 0, basePrice: 20, name: "高級赤ペン", desc: "採点1回で積む徳 +1", icon: "pen-tool" },
+                hanamaruStamp: { level: 0, basePrice: 150, name: "花まるスタンプ", desc: "自動で積む徳 +1 徳/秒", icon: "stamp" },
+                comboBonus: { level: 0, basePrice: 300, name: "丸付けハイ", desc: "コンボ(連続正解)で増える徳の倍率がUP", icon: "flame" },
+                gradingAssistant: { level: 0, basePrice: 1000, name: "採点バイト（助手）", desc: "一定時間ごとに問題を自動採点", icon: "user-check" },
+                answerKey: { level: 0, basePrice: 2500, maxLevel: 1, name: "模範解答集", desc: "問題枠に正解/不正解をアシスト表示", icon: "book-open" },
+                praiseMultiplier: { level: 0, basePrice: 5000, name: "オマケの丸", desc: "答案返却時に得られる徳 +0.5 倍", icon: "sparkles" },
+                autoReturnMachine: { level: 0, basePrice: 10000, maxLevel: 1, name: "全自動返却機", desc: "採点完了時に自動で返却ボタンを押す", icon: "bot" }
+            }
+        };
+
+        const storyChapters = {
+            1: {
+                threshold: 0,
+                title: "駆け出し丸付け人",
+                chapterName: "第1章：積徳の始まり",
+                heading: "小さな奇跡の芽生え",
+                text: "「終わらない……今日の丸付けが終わらない……」\n定時退勤の夢が潰えかけたその時、あなたは気づく。「一枚一枚と向き合い丸をつける行為……これは徳を積む行為では？」その瞬間、赤ペンが光を帯びた！",
+                auraClass: ""
+            },
+            2: {
+                threshold: 1000,
+                title: "職員室の頼れる先生",
+                chapterName: "第2章：職員室の守護神",
+                heading: "職員室に差し込む光",
+                text: "積み重ねた徳の効果により、校内の空気が浄化され始める。「あそこのデスクだけ後光が差している」と噂され、他の先生からの信頼度（徳）が急上昇した！",
+                auraClass: "aura-ch2"
+            },
+            3: {
+                threshold: 50000,
+                title: "光の数学教師",
+                chapterName: "第3章：黄金の赤ペンと学校の覚醒",
+                heading: "校内の荒れが沈静化！",
+                text: "爆速の返却速度により、生徒たちが記憶のあるうちに復習できるようになった。学年全体の数学の平均点が急上昇！「先生の丸付けが見たいから」と生徒の遅刻が劇的に少なくなった！",
+                auraClass: "aura-ch3"
+            },
+            4: {
+                threshold: 1000000,
+                title: "赤ペン大権現",
+                chapterName: "第4章：概念と化した教師",
+                heading: "文部科学省からの表彰",
+                text: "あなたの放つ徳のオーラは校舎を突き抜け、日本一徳が高い教師として表彰された。「数学＝楽しいもの」という概念が世界中に伝播し、世界中の算数嫌いな子供たちが救われていく！",
+                auraClass: "aura-ch4"
+            },
+            5: {
+                threshold: 10000000,
+                title: "定時退勤の神",
+                chapterName: "エピローグ：解脱・永遠の定時退勤",
+                heading: "完全自動調和空間の完成！",
+                text: "すべての小テストは配られた瞬間に自動で正誤判定される「調和の域」へ到達。「これにて、本日の校務……すべて完了！」後光に包まれたあなたは残業ゼロ・定時ピッタリに学校を後にするのだった――。",
+                auraClass: "aura-ch5"
+            }
+        };
+
+        const studentComments = [
+            "先生、なんか今日の○いつもより綺麗で嬉しいです！",
+            "返却早すぎ笑った！もう復習できる！",
+            "先生の丸付け見てると心が落ち着きます...",
+            "次のテストも頑張って100点取ります！",
+            "先生のデスク、なんか後光が差してません...？",
+            "爆速返却ありがとうございます！神！",
+            "数学がちょっと好きになってきました！",
+            "先生、定時で帰ってくださいね！"
+        ];
+
+        let currentPaper = {
+            paperNumber: 1,
+            questions: [],
+            studentScore: 0,
+            currentIndex: 0,
+            gradedCount: 0,
+            isRevealedScore: false
+        };
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!state.soundEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new AudioContext();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'maru') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'batsu') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.setValueAtTime(180, now + 0.08);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'return') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554.37, now + 0.1);
+                    osc.frequency.setValueAtTime(659.25, now + 0.2);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'buy') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now);
+                    osc.frequency.setValueAtTime(880, now + 0.08);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'story') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.12);
+                    osc.frequency.setValueAtTime(783.99, now + 0.24);
+                    osc.frequency.setValueAtTime(1046.50, now + 0.36);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                }
+            } catch(e) {}
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            const status = document.getElementById('soundStatus');
+            if (state.soundEnabled) {
+                status.textContent = 'SOUND: ON';
+                icon.setAttribute('data-lucide', 'volume-2');
+            } else {
+                status.textContent = 'SOUND: OFF';
+                icon.setAttribute('data-lucide', 'volume-x');
+            }
+            lucide.createIcons();
+        }
+
+        function generateMathQuestion() {
+            const types = ['add', 'sub', 'mul', 'div'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            let num1, num2, correctResult, opSymbol;
+
+            if (type === 'add') {
+                num1 = Math.floor(Math.random() * 89) + 10;
+                num2 = Math.floor(Math.random() * 89) + 10;
+                correctResult = num1 + num2;
+                opSymbol = '＋';
+            } else if (type === 'sub') {
+                num1 = Math.floor(Math.random() * 89) + 10;
+                num2 = Math.floor(Math.random() * (num1 - 1)) + 1;
+                correctResult = num1 - num2;
+                opSymbol = '－';
+            } else if (type === 'mul') {
+                num1 = Math.floor(Math.random() * 12) + 2;
+                num2 = Math.floor(Math.random() * 12) + 2;
+                correctResult = num1 * num2;
+                opSymbol = '×';
+            } else { // div
+                num2 = Math.floor(Math.random() * 9) + 2;
+                correctResult = Math.floor(Math.random() * 12) + 1;
+                num1 = num2 * correctResult;
+                opSymbol = '÷';
+            }
+
+            const expr = `${num1} ${opSymbol} ${num2} =`;
+            
+            let studentAns = correctResult;
+            const isMistake = Math.random() < 0.35;
+            if (isMistake) {
+                const delta = (Math.floor(Math.random() * 4) + 1) * (Math.random() < 0.5 ? 1 : -1);
+                studentAns = Math.max(0, correctResult + delta);
+                if (studentAns === correctResult) studentAns += 1;
+            }
+
+            return {
+                expr: expr,
+                correctResult: correctResult,
+                studentAns: studentAns,
+                isCorrectAnswer: (studentAns === correctResult),
+                userGraded: null,
+                isPlayerCorrectGrading: null
+            };
+        }
+
+        function createNewPaper() {
+            currentPaper.questions = [];
+            for (let i = 0; i < 10; i++) {
+                currentPaper.questions.push(generateMathQuestion());
+            }
+            const correctStudentAnsCount = currentPaper.questions.filter(q => q.isCorrectAnswer).length;
+            currentPaper.studentScore = correctStudentAnsCount * 10;
+
+            currentPaper.currentIndex = 0;
+            currentPaper.gradedCount = 0;
+            currentPaper.isRevealedScore = false;
+            renderPaper();
+        }
+
+        function renderPaper() {
+            document.getElementById('classNumberDisplay').textContent = state.classNum;
+            document.getElementById('studentNumberDisplay').textContent = state.studentNum;
+            document.getElementById('gradedCountDisplay').textContent = currentPaper.gradedCount;
+            
+            document.getElementById('paperScoreDisplay').textContent = currentPaper.isRevealedScore ? currentPaper.studentScore : '--';
+            
+            const progressPercent = (currentPaper.gradedCount / 10) * 100;
+            document.getElementById('paperProgressBar').style.width = `${progressPercent}%`;
+
+            const returnBtn = document.getElementById('returnPaperBtn');
+            const returnBtnText = document.getElementById('returnBtnText');
+
+            if (currentPaper.gradedCount === 10) {
+                returnBtn.disabled = false;
+                returnBtn.className = "w-full bg-gradient-to-r from-red-500 to-pink-500 text-white font-black py-4 px-6 rounded-2xl shadow-lg border-b-4 border-red-700 cursor-pointer hover:brightness-110 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 text-lg animate-bounce";
+                returnBtnText.textContent = "生徒に返却する！ (＋徳を獲得)";
+                document.getElementById('paperStatusText').textContent = "採点完了！返却準備よし";
+                document.getElementById('paperStatusText').className = "text-emerald-600 font-extrabold";
+
+                if (state.autoReturnUnlocked) {
+                    setTimeout(() => {
+                        if (currentPaper.gradedCount === 10) returnPaper();
+                    }, 500);
+                }
+            } else {
+                returnBtn.disabled = true;
+                returnBtn.className = "w-full bg-slate-300 text-slate-500 font-black py-4 px-6 rounded-2xl shadow border-b-4 border-slate-400 cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 text-lg";
+                returnBtnText.textContent = `10問すべて採点してください (${currentPaper.gradedCount}/10)`;
+                document.getElementById('paperStatusText').textContent = "採点中...";
+                document.getElementById('paperStatusText').className = "text-red-600";
+            }
+
+            if (currentPaper.currentIndex < 10 && currentPaper.gradedCount < 10) {
+                const q = currentPaper.questions[currentPaper.currentIndex];
+                document.getElementById('currentQNum').textContent = currentPaper.currentIndex + 1;
+                document.getElementById('currentExpr').textContent = q.expr;
+                document.getElementById('currentStudentAns').textContent = q.studentAns;
+
+                const hintEl = document.getElementById('answerKeyHint');
+                if (state.answerKeyUnlocked) {
+                    hintEl.classList.remove('hidden');
+                    document.getElementById('correctAnswerValue').textContent = q.correctResult;
+                    const judgeEl = document.getElementById('judgementHint');
+                    if (q.isCorrectAnswer) {
+                        judgeEl.textContent = "○ (正しい)";
+                        judgeEl.className = "ml-2 font-black px-2 py-0.5 rounded text-white text-xs bg-emerald-500";
+                    } else {
+                        judgeEl.textContent = "× (間違い)";
+                        judgeEl.className = "ml-2 font-black px-2 py-0.5 rounded text-white text-xs bg-indigo-500";
+                    }
+                } else {
+                    hintEl.classList.add('hidden');
+                }
+            } else {
+                document.getElementById('currentQNum').textContent = "-";
+                document.getElementById('currentExpr').textContent = "全問題の採点が完了しました！";
+                document.getElementById('currentStudentAns').textContent = "返却へ";
+                document.getElementById('answerKeyHint').classList.add('hidden');
+            }
+
+            // 10問一覧グリッド
+            const gridEl = document.getElementById('questionsGrid');
+            gridEl.innerHTML = '';
+            currentPaper.questions.forEach((q, idx) => {
+                const isCurrent = idx === currentPaper.currentIndex && currentPaper.gradedCount < 10;
+                let bgClass = "bg-white border-slate-200 text-slate-700";
+                let statusBadge = `<span class="text-slate-400">未</span>`;
+
+                if (q.userGraded === 'maru') {
+                    bgClass = q.isPlayerCorrectGrading ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-red-100 border-red-300 text-red-800";
+                    statusBadge = `<span class="font-extrabold text-emerald-600">○</span>`;
+                } else if (q.userGraded === 'batsu') {
+                    bgClass = q.isPlayerCorrectGrading ? "bg-indigo-50 border-indigo-300 text-indigo-800" : "bg-red-100 border-red-300 text-red-800";
+                    statusBadge = `<span class="font-extrabold text-indigo-600">×</span>`;
+                }
+
+                if (isCurrent) {
+                    bgClass += " ring-2 ring-amber-400 border-amber-400 font-bold scale-105 shadow-sm";
+                }
+
+                const card = document.createElement('div');
+                card.className = `p-2 rounded-xl border flex flex-col justify-between items-center text-center transition ${bgClass}`;
+                card.innerHTML = `
+                    <div class="flex justify-between w-full text-[10px] text-slate-400 border-b border-slate-100 pb-0.5">
+                        <span>問${idx+1}</span>
+                        ${statusBadge}
+                    </div>
+                    <div class="font-bold my-1 text-xs">${q.expr} ${q.studentAns}</div>
+                `;
+                gridEl.appendChild(card);
+            });
+        }
+
+        function addVirtue(amount) {
+            state.score += amount;
+            state.totalVirtueEarned += amount;
+            checkStoryProgression();
+        }
+
+        function gradeCurrent(playerSaysCorrect, isAuto = false) {
+            if (currentPaper.gradedCount >= 10) return;
+
+            if (!isAuto) {
+                assistantTimer = 0;
+            }
+
+            const q = currentPaper.questions[currentPaper.currentIndex];
+            const isGradingCorrect = (playerSaysCorrect === q.isCorrectAnswer);
+
+            q.userGraded = playerSaysCorrect ? 'maru' : 'batsu';
+            q.isPlayerCorrectGrading = isGradingCorrect;
+
+            state.totalGradingAttempts++;
+
+            if (isGradingCorrect) {
+                state.combo++;
+                state.totalCorrectGrading++;
+                playSound('maru');
+                
+                // 丸付けハイのレベルに応じたコンボ倍率計算
+                const comboLevel = state.upgrades.comboBonus ? state.upgrades.comboBonus.level : 0;
+                const comboRate = 0.1 + (comboLevel * 0.05); // 1Lvごとに+5%
+                const maxComboMult = 3.0 + (comboLevel * 1.0); // 1Lvごとに最大倍率上限+100%
+                
+                const comboMultiplier = 1 + Math.min(state.combo * comboRate, maxComboMult);
+                const earned = Math.round(state.ptsPerClick * comboMultiplier);
+                
+                addVirtue(earned);
+                showFloatingText(isAuto ? `+${earned} 徳 (バイト)` : `+${earned} 徳`, playerSaysCorrect ? 'maru' : 'batsu');
+            } else {
+                state.combo = 0;
+                playSound('batsu');
+                showFloatingText(`ミス! コンボリセット`, 'batsu');
+            }
+
+            currentPaper.gradedCount++;
+            currentPaper.currentIndex++;
+            renderPaper();
+        }
+
+        let isReturning = false;
+
+        function returnPaper() {
+            if (currentPaper.gradedCount < 10 || isReturning) return;
+            isReturning = true;
+
+            currentPaper.isRevealedScore = true;
+            document.getElementById('paperScoreDisplay').textContent = currentPaper.studentScore;
+
+            const playerCorrectCount = currentPaper.questions.filter(q => q.isPlayerCorrectGrading).length;
+            const praiseLevel = state.upgrades.praiseMultiplier.level;
+            const paperMultiplier = 1 + (praiseLevel * 0.5);
+
+            const paperBaseBonus = playerCorrectCount * 10; 
+            const finalPaperReward = Math.round(paperBaseBonus * paperMultiplier);
+
+            addVirtue(finalPaperReward);
+            state.totalPapersReturned++;
+
+            playSound('return');
+
+            showStudentComment();
+
+            if (currentPaper.studentScore === 100) {
+                confetti({
+                    particleCount: 60,
+                    spread: 70,
+                    origin: { y: 0.7 }
+                });
+            }
+
+            setTimeout(() => {
+                state.studentNum++;
+                if (state.studentNum > 40) {
+                    state.studentNum = 1;
+                    state.classNum++;
+                }
+                createNewPaper();
+                updateUI();
+                isReturning = false;
+            }, 750);
+        }
+
+        function showStudentComment() {
+            const box = document.getElementById('studentCommentBox');
+            const textEl = document.getElementById('studentCommentText');
+            const randomComment = studentComments[Math.floor(Math.random() * studentComments.length)];
+            
+            textEl.textContent = randomComment;
+            box.classList.remove('hidden');
+
+            setTimeout(() => {
+                box.classList.add('hidden');
+            }, 3500);
+        }
+
+        function showFloatingText(text, type) {
+            const paper = document.getElementById('activeQuestionArea');
+            if (!paper) return;
+            const floating = document.createElement('div');
+            floating.className = `absolute font-black text-xl pointer-events-none z-30 transition-all duration-700 transform -translate-y-0 opacity-100 ${type === 'maru' ? 'text-emerald-600' : 'text-indigo-600'}`;
+            floating.style.left = `${50 + (Math.random() * 20 - 10)}%`;
+            floating.style.top = '20%';
+            floating.textContent = text;
+            paper.appendChild(floating);
+
+            setTimeout(() => {
+                floating.style.transform = 'translateY(-40px)';
+                floating.style.opacity = '0';
+            }, 50);
+
+            setTimeout(() => {
+                floating.remove();
+            }, 750);
+        }
+
+        function checkStoryProgression() {
+            const lifetime = state.totalVirtueEarned;
+
+            Object.keys(storyChapters).forEach(chKey => {
+                const chapter = storyChapters[chKey];
+                if (lifetime >= chapter.threshold && !state.unlockedChapters.includes(Number(chKey))) {
+                    state.unlockedChapters.push(Number(chKey));
+                    if (Number(chKey) > 1) {
+                        triggerStoryEvent(chapter);
+                    }
+                }
+            });
+
+            updateStoryVisuals();
+        }
+
+        function updateStoryVisuals() {
+            let currentCh = 1;
+            Object.keys(storyChapters).forEach(chKey => {
+                if (state.totalVirtueEarned >= storyChapters[chKey].threshold) {
+                    currentCh = Number(chKey);
+                }
+            });
+
+            const chapter = storyChapters[currentCh];
+            document.getElementById('titleText').textContent = chapter.title;
+
+            const chalkboard = document.getElementById('chalkboardArea');
+            chalkboard.className = `chalkboard rounded-2xl p-4 md:p-6 text-white relative overflow-hidden ${chapter.auraClass}`;
+        }
+
+        function triggerStoryEvent(chapter) {
+            document.getElementById('storyChapterTitle').textContent = chapter.chapterName;
+            document.getElementById('storyHeading').textContent = chapter.heading;
+            document.getElementById('storyBodyText').textContent = chapter.text;
+
+            playSound('story');
+            confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 } });
+
+            document.getElementById('storyModal').classList.remove('hidden');
+        }
+
+        function closeStoryModal() {
+            document.getElementById('storyModal').classList.add('hidden');
+        }
+
+        function openHelpModal() {
+            document.getElementById('welcomeModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeWelcomeModal() {
+            document.getElementById('welcomeModal').classList.add('hidden');
+        }
+
+        function renderShop() {
+            const shopList = document.getElementById('shopList');
+            shopList.innerHTML = '';
+
+            const keys = Object.keys(state.upgrades);
+            
+            // MAXレベル到達アイテムを末尾にしつつ、初期価格(basePrice)の昇順でソート
+            keys.sort((a, b) => {
+                const itemA = state.upgrades[a];
+                const itemB = state.upgrades[b];
+                const isMaxA = itemA.maxLevel && itemA.level >= itemA.maxLevel;
+                const isMaxB = itemB.maxLevel && itemB.level >= itemB.maxLevel;
+
+                if (isMaxA && !isMaxB) return 1;
+                if (!isMaxA && isMaxB) return -1;
+                return itemA.basePrice - itemB.basePrice;
+            });
+
+            keys.forEach(key => {
+                const item = state.upgrades[key];
+                const cost = Math.floor(item.basePrice * Math.pow(1.4, item.level));
+                const isMax = item.maxLevel && item.level >= item.maxLevel;
+                const canAfford = state.score >= cost && !isMax;
+
+                const card = document.createElement('div');
+                card.id = `shop-card-${key}`;
+                card.className = `bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 transition-colors ${canAfford ? 'hover:bg-amber-50/60 hover:border-amber-300' : 'opacity-80'}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="bg-red-100 text-red-600 p-2.5 rounded-xl flex-shrink-0 pointer-events-none">
+                            <i data-lucide="${item.icon}" class="w-5 h-5"></i>
+                        </div>
+                        <div class="pointer-events-none">
+                            <div class="flex items-center gap-2">
+                                <span class="font-extrabold text-slate-800 text-sm">${item.name}</span>
+                                <span id="shop-level-${key}" class="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+                                    Lv.${item.level}${item.maxLevel ? `/${item.maxLevel}` : ''}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">${item.desc}</p>
+                        </div>
+                    </div>
+                    <button id="shop-btn-${key}" data-key="${key}" onclick="buyUpgrade('${key}')" ${!canAfford ? 'disabled' : ''} 
+                        class="shop-btn flex-shrink-0 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all duration-150 ${
+                            isMax 
+                            ? 'bg-slate-300 text-slate-600 cursor-default' 
+                            : canAfford 
+                                ? 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white cursor-pointer shadow-md' 
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        }">
+                        <span id="shop-cost-${key}">${isMax ? 'MAX' : cost + ' 徳'}</span>
+                    </button>
+                `;
+                shopList.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        function updateShopButtons() {
+            const accuracy = state.totalGradingAttempts > 0 
+                ? Math.round((state.totalCorrectGrading / state.totalGradingAttempts) * 100) 
+                : 100;
+            const isAccuracyOk = accuracy >= 80;
+
+            const warningEl = document.getElementById('accuracyWarning');
+            if (warningEl) {
+                if (!isAccuracyOk) {
+                    warningEl.classList.remove('hidden');
+                } else {
+                    warningEl.classList.add('hidden');
+                }
+            }
+
+            Object.keys(state.upgrades).forEach(key => {
+                const item = state.upgrades[key];
+                const cost = Math.floor(item.basePrice * Math.pow(1.4, item.level));
+                const isMax = item.maxLevel && item.level >= item.maxLevel;
+                const canAfford = state.score >= cost && !isMax && isAccuracyOk;
+
+                const btn = document.getElementById(`shop-btn-${key}`);
+                const costText = document.getElementById(`shop-cost-${key}`);
+                const levelText = document.getElementById(`shop-level-${key}`);
+                const card = document.getElementById(`shop-card-${key}`);
+
+                if (btn && costText && levelText && card) {
+                    levelText.textContent = `Lv.${item.level}${item.maxLevel ? `/${item.maxLevel}` : ''}`;
+                    costText.textContent = isMax ? 'MAX' : (!isAccuracyOk ? 'ロック中' : `${cost} 徳`);
+
+                    if (isMax) {
+                        btn.disabled = true;
+                        btn.className = "shop-btn flex-shrink-0 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm bg-slate-300 text-slate-600 cursor-default";
+                        card.className = "bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 opacity-80";
+                    } else if (!isAccuracyOk) {
+                        btn.disabled = true;
+                        btn.className = "shop-btn flex-shrink-0 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm bg-red-200 text-red-600 cursor-not-allowed";
+                        card.className = "bg-red-50/50 border border-red-200 rounded-xl p-3 flex items-center justify-between gap-3 opacity-75";
+                    } else if (canAfford) {
+                        btn.disabled = false;
+                        btn.className = "shop-btn flex-shrink-0 px-4 py-2.5 rounded-xl font-bold text-xs shadow-md transition-all duration-150 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white cursor-pointer";
+                        card.className = "bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 transition-colors hover:bg-amber-50/60 hover:border-amber-300";
+                    } else {
+                        btn.disabled = true;
+                        btn.className = "shop-btn flex-shrink-0 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm bg-slate-200 text-slate-400 cursor-not-allowed";
+                        card.className = "bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 opacity-80";
+                    }
+                }
+            });
+        }
+
+        function buyUpgrade(key) {
+            const accuracy = state.totalGradingAttempts > 0 
+                ? Math.round((state.totalCorrectGrading / state.totalGradingAttempts) * 100) 
+                : 100;
+            if (accuracy < 80) return;
+
+            const item = state.upgrades[key];
+            if (!item) return;
+
+            const cost = Math.floor(item.basePrice * Math.pow(1.4, item.level));
+            const isMax = item.maxLevel && item.level >= item.maxLevel;
+
+            if (state.score >= cost && !isMax) {
+                state.score -= cost;
+                item.level++;
+
+                if (key === 'redPen') {
+                    state.ptsPerClick += 1;
+                } else if (key === 'hanamaruStamp') {
+                    state.autoPtsPerSec += 1;
+                } else if (key === 'answerKey') {
+                    state.answerKeyUnlocked = true;
+                    renderPaper();
+                } else if (key === 'autoReturnMachine') {
+                    state.autoReturnUnlocked = true;
+                }
+
+                playSound('buy');
+                renderShop(); // MAX到達時などの表示順ソート変更のために再描画
+                updateUI();
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('scoreDisplay').textContent = Math.floor(state.score).toLocaleString();
+            document.getElementById('totalVirtueDisplay').textContent = Math.floor(state.totalVirtueEarned).toLocaleString();
+            
+            let totalPps = state.autoPtsPerSec;
+            const assistantLevel = state.upgrades.gradingAssistant.level;
+            if (assistantLevel > 0) {
+                const interval = Math.max(0.5, 4.5 - (assistantLevel * 0.4));
+                const assistantPps = Math.round((1 / interval) * state.ptsPerClick);
+                totalPps += assistantPps;
+            }
+
+            document.getElementById('ppsDisplay').textContent = totalPps.toLocaleString();
+            document.getElementById('returnedPapersDisplay').textContent = state.totalPapersReturned;
+            document.getElementById('comboBadge').textContent = `COMBO x${state.combo}`;
+
+            const accuracy = state.totalGradingAttempts > 0 
+                ? Math.round((state.totalCorrectGrading / state.totalGradingAttempts) * 100) 
+                : 100;
+            document.getElementById('accuracyDisplay').textContent = `${accuracy}%`;
+
+            updateShopButtons();
+        }
+
+        let assistantTimer = 0;
+        setInterval(() => {
+            if (state.autoPtsPerSec > 0) {
+                const addVal = (state.autoPtsPerSec / 10);
+                state.score += addVal;
+                state.totalVirtueEarned += addVal;
+                checkStoryProgression();
+            }
+
+            const assistantLevel = state.upgrades.gradingAssistant.level;
+            const badgeEl = document.getElementById('assistantStatusBadge');
+            
+            if (assistantLevel > 0) {
+                if (badgeEl) badgeEl.classList.remove('hidden');
+                assistantTimer += 0.1;
+                const interval = Math.max(0.5, 4.5 - (assistantLevel * 0.4));
+                
+                if (assistantTimer >= interval) {
+                    assistantTimer = 0;
+                    if (currentPaper.gradedCount < 10) {
+                        const q = currentPaper.questions[currentPaper.currentIndex];
+                        gradeCurrent(q.isCorrectAnswer, true);
+                    }
+                }
+            } else {
+                if (badgeEl) badgeEl.classList.add('hidden');
+            }
+
+            updateUI();
+        }, 100);
+
+        // キーボードショートカット
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'o' || e.key === 'O' || e.key === 'ArrowLeft') {
+                gradeCurrent(true);
+            } else if (e.key === 'x' || e.key === 'X' || e.key === 'ArrowRight') {
+                gradeCurrent(false);
+            } else if (e.key === 'Enter' || e.key === ' ') {
+                if (currentPaper.gradedCount === 10) {
+                    returnPaper();
+                }
+            }
+        });
+
+        window.onload = function() {
+            renderShop();
+            lucide.createIcons();
+            createNewPaper();
+            checkStoryProgression();
+            updateUI();
+            
+            openHelpModal();
+        };
+    </script>
+</body>
+</html>
